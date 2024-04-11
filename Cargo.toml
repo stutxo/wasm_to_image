@@ -1,6 +1,6 @@
 [package]
 name = "wasm_to_png"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["stutxo <stutxo@proton.me>"]
 edition = "2021"
 description = "convert a wasm file to png"

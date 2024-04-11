@@ -1,16 +1,20 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use image::ImageFormat;
-use image::{ImageBuffer, Luma};
+use image::{ImageBuffer, ImageFormat, Luma};
 use oxipng::{optimize_from_memory, Options};
-use std::error::Error;
-use std::fs::{self, File};
+use std::env;
+use std::fs::File;
 use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let wasm_file_path = find_first_wasm_file()?;
-    let mut file = File::open(wasm_file_path.clone())?;
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        return Err("Usage: program <path_to_wasm_file>".into());
+    }
+    let wasm_file_path = PathBuf::from(&args[1]);
+
+    let mut file = File::open(&wasm_file_path)?;
     let mut wasm_bytes = Vec::new();
     file.read_to_end(&mut wasm_bytes)?;
 
@@ -38,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let png_bytes = optimize_from_memory(&png_bytes, &options)?;
 
     // Encode the bytes into a base64 string using the standard base64 engine
-    let base64_string = STANDARD.encode(png_bytes.clone());
+    let base64_string = STANDARD.encode(&png_bytes);
 
     // Create a data URI
     let data_uri = format!("data:image/png;base64,{}", base64_string);
@@ -51,18 +55,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     output_file.write_all(&png_bytes)?;
 
     Ok(())
-}
-
-fn find_first_wasm_file() -> Result<PathBuf, Box<dyn Error>> {
-    let entries = fs::read_dir(".")?; // Read the current directory
-
-    for entry in entries {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() && path.extension().and_then(std::ffi::OsStr::to_str) == Some("wasm") {
-            return Ok(path);
-        }
-    }
-
-    Err("No .wasm file found in the current directory".into())
 }
