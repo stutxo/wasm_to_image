@@ -1,15 +1,16 @@
-use image::io::Reader as ImageReader;
-use image::{ImageBuffer, Luma};
-use oxipng::{optimize_from_memory, Options};
-use std::fs::File;
-use std::io::{Cursor, Read};
-
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use image::ImageFormat;
+use image::{ImageBuffer, Luma};
+use oxipng::{optimize_from_memory, Options};
+use std::error::Error;
+use std::fs::{self, File};
+use std::io::{Cursor, Read, Write};
+use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut file = File::open("blockwars.wasm")?;
+    let wasm_file_path = find_first_wasm_file()?;
+    let mut file = File::open(wasm_file_path.clone())?;
     let mut wasm_bytes = Vec::new();
     file.read_to_end(&mut wasm_bytes)?;
 
@@ -29,20 +30,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(width as u32, height as u32, wasm_with_length)
             .ok_or("Failed to create image buffer")?;
 
-    let output_filename = "blockwars.png";
-    img.save(output_filename)?;
-
-    let img = ImageReader::open("blockwars.png")?.decode()?;
-
     // Convert the image to PNG format and capture in a byte vector
     let mut png_bytes = Vec::new();
     img.write_to(&mut Cursor::new(&mut png_bytes), ImageFormat::Png)?;
 
     let options = Options::from_preset(7);
-    let optimized_png = optimize_from_memory(&png_bytes, &options)?;
+    let png_bytes = optimize_from_memory(&png_bytes, &options)?;
 
     // Encode the bytes into a base64 string using the standard base64 engine
-    let base64_string = STANDARD.encode(optimized_png);
+    let base64_string = STANDARD.encode(png_bytes.clone());
 
     // Create a data URI
     let data_uri = format!("data:image/png;base64,{}", base64_string);
@@ -50,5 +46,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Output the data URI
     println!("{}", data_uri);
 
+    let output_filename = wasm_file_path.with_extension("png");
+    let mut output_file = File::create(output_filename)?;
+    output_file.write_all(&png_bytes)?;
+
     Ok(())
+}
+
+fn find_first_wasm_file() -> Result<PathBuf, Box<dyn Error>> {
+    let entries = fs::read_dir(".")?; // Read the current directory
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() && path.extension().and_then(std::ffi::OsStr::to_str) == Some("wasm") {
+            return Ok(path);
+        }
+    }
+
+    Err("No .wasm file found in the current directory".into())
 }
