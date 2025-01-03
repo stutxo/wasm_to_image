@@ -5,7 +5,7 @@ authors = ["stutxo <stutxo@proton.me>"]
 edition = "2021"
 description = "convert a wasm file to png"
 license = "MIT"
-
+repository = "https://github.com/stutxo/wasm_to_image"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
